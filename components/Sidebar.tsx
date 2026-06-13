@@ -11,6 +11,8 @@ import {
   CircleDollarSign,
   CreditCard,
   FolderArchive,
+  Map,
+  PackageOpen,
   Home,
   Landmark,
   Menu,
@@ -27,15 +29,17 @@ const groups = [
     items: [
       { label: "홈", href: "/", icon: Home },
       { label: "사업자등록", href: "/business-registration", icon: Building2 },
+      { label: "사업 준비물 안내", href: "/business-preparation", icon: Map },
       { label: "사업용 계좌", href: "#", icon: CreditCard, soon: true },
       { label: "통신판매업 신고", href: "#", icon: Store, soon: true },
-      { label: "내 보관함", href: "/my-assets", icon: FolderArchive },
+      { label: "내 사업 문서", href: "/my-assets", icon: FolderArchive },
     ],
   },
   {
     label: "운영 관리",
     items: [
-      { label: "세금 일정", href: "#", icon: CalendarDays, soon: true },
+      { label: "세금 일정", href: "/tax-calendar", icon: CalendarDays },
+      { label: "포장·배송 운영", href: "/fulfillment", icon: PackageOpen },
       { label: "지원사업", href: "#", icon: CircleDollarSign, soon: true },
     ],
   },
