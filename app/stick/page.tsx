@@ -81,6 +81,25 @@ const sourceFromUrl = (url: string): SourceType => {
   return "web";
 };
 
+const youtubeVideoId = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace("www.", "");
+    if (host === "youtu.be") return parsed.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (!host.includes("youtube.com")) return "";
+    if (parsed.pathname === "/watch") return parsed.searchParams.get("v") ?? "";
+    const parts = parsed.pathname.split("/").filter(Boolean);
+    return ["shorts", "embed", "live"].includes(parts[0]) ? parts[1] ?? "" : "";
+  } catch {
+    return "";
+  }
+};
+
+const thumbnailFromUrl = (url: string) => {
+  const videoId = youtubeVideoId(url);
+  return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : "";
+};
+
 const splitTags = (value: FormDataEntryValue | null) => String(value ?? "").split(",").map((tag) => tag.trim()).filter(Boolean);
 
 export default function StickPage() {
@@ -252,7 +271,8 @@ export default function StickPage() {
         const record: StickRecord = {
           id: modal.record?.id ?? crypto.randomUUID(), type, source: type === "idea" ? "idea" : sourceFromUrl(url),
           title: String(form.get("title")), body: String(form.get("body") ?? ""), tags: splitTags(form.get("tags")),
-          url, createdAt: modal.record?.createdAt ?? new Date().toISOString(),
+          url, image: type === "inspiration" ? thumbnailFromUrl(url) || modal.record?.image : undefined,
+          createdAt: modal.record?.createdAt ?? new Date().toISOString(),
         };
         updateActiveProject((project) => ({
           ...project,
@@ -267,7 +287,7 @@ export default function StickPage() {
 }
 
 function RecordPanel({ title, type, records, onOpen }: { title: string; type: RecordType; records: StickRecord[]; onOpen: (record: StickRecord) => void }) {
-  return <div className="stick-panel"><div className="stick-panel-heading"><div><span className="overline">{type === "idea" ? "MY IDEAS" : "INSPIRATIONS"}</span><h3>{title}</h3></div><strong>{records.length}</strong></div><div className="stick-record-grid">{records.map((record) => <button className="stick-record-card" key={record.id} onClick={() => onOpen(record)}><span className={`stick-record-source ${record.source}`}>{sourceNames[record.source]}</span><h4>{record.title}</h4><p>{record.body || "저장된 메모가 없습니다."}</p><div><span>{record.tags.slice(0, 2).map((tag) => `#${tag}`).join(" ")}</span><small>{new Date(record.createdAt).toLocaleDateString("ko-KR")}</small></div></button>)}</div>{records.length === 0 && <div className="stick-panel-empty"><strong>아직 기록이 없습니다.</strong><span>위의 추가 버튼으로 첫 기록을 남겨보세요.</span></div>}</div>;
+  return <div className="stick-panel"><div className="stick-panel-heading"><div><span className="overline">{type === "idea" ? "MY IDEAS" : "INSPIRATIONS"}</span><h3>{title}</h3></div><strong>{records.length}</strong></div><div className="stick-record-grid">{records.map((record) => <button className="stick-record-card" key={record.id} onClick={() => onOpen(record)}>{record.type === "inspiration" && <RecordThumbnail record={record} />}<span className="stick-record-card-body"><span className={`stick-record-source ${record.source}`}>{sourceNames[record.source]}</span><h4>{record.title}</h4><p>{record.body || "저장된 메모가 없습니다."}</p><span className="stick-record-meta"><span>{record.tags.slice(0, 2).map((tag) => `#${tag}`).join(" ")}</span><small>{new Date(record.createdAt).toLocaleDateString("ko-KR")}</small></span></span></button>)}</div>{records.length === 0 && <div className="stick-panel-empty"><strong>아직 기록이 없습니다.</strong><span>위의 추가 버튼으로 첫 기록을 남겨보세요.</span></div>}</div>;
 }
 
 function ProjectModal({ onClose, onSubmit }: { onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void }) {
@@ -280,7 +300,13 @@ function RecordModal({ type, record, onClose, onSubmit }: { type: RecordType; re
 }
 
 function RecordDetail({ record, onClose, onEdit, onDelete }: { record: StickRecord; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
-  return <Modal title={record.title} overline={sourceNames[record.source]} onClose={onClose}><div className="stick-record-detail"><p>{record.body || "저장된 메모가 없습니다."}</p><div>{record.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div>{record.url && <a href={record.url} target="_blank" rel="noreferrer">원본 링크 열기 <ExternalLink size={14} /></a>}<div className="stick-detail-actions"><button className="button button-ghost" onClick={onDelete}><Trash2 size={15} /> 삭제</button><button className="button button-dark" onClick={onEdit}>수정하기</button></div></div></Modal>;
+  return <Modal title={record.title} overline={sourceNames[record.source]} onClose={onClose}><div className="stick-record-detail">{record.type === "inspiration" && <RecordThumbnail record={record} detail />}<p>{record.body || "저장된 메모가 없습니다."}</p><div>{record.tags.map((tag) => <span key={tag}>#{tag}</span>)}</div>{record.url && <a href={record.url} target="_blank" rel="noreferrer">원본 링크 열기 <ExternalLink size={14} /></a>}<div className="stick-detail-actions"><button className="button button-ghost" onClick={onDelete}><Trash2 size={15} /> 삭제</button><button className="button button-dark" onClick={onEdit}>수정하기</button></div></div></Modal>;
+}
+
+function RecordThumbnail({ record, detail = false }: { record: StickRecord; detail?: boolean }) {
+  const image = record.image || thumbnailFromUrl(record.url ?? "");
+  const Icon = record.source === "youtube" ? Youtube : record.source === "instagram" ? Instagram : Globe2;
+  return <span className={`stick-record-thumbnail ${record.source}${detail ? " detail" : ""}`}>{image ? <img src={image} alt="" /> : <><Icon size={detail ? 38 : 28} /><small>{sourceNames[record.source]}</small></>}</span>;
 }
 
 function Modal({ title, overline, onClose, children }: { title: string; overline: string; onClose: () => void; children: React.ReactNode }) {
