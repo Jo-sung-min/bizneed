@@ -13,11 +13,13 @@ import {
   FolderArchive,
   Map,
   PackageOpen,
+  ShoppingBasket,
   Home,
   Landmark,
   Menu,
   Settings,
   Sparkles,
+  StickyNote,
   Store,
   X,
 } from "lucide-react";
@@ -40,6 +42,8 @@ const groups = [
     items: [
       { label: "세금 일정", href: "/tax-calendar", icon: CalendarDays },
       { label: "포장·배송 운영", href: "/fulfillment", icon: PackageOpen },
+      { label: "제품 셀링", href: "/product-selling", icon: ShoppingBasket },
+      { label: "stick", href: "/stick", icon: StickyNote },
       { label: "지원사업", href: "#", icon: CircleDollarSign, soon: true },
     ],
   },
