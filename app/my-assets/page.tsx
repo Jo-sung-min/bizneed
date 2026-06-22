@@ -4,6 +4,7 @@ import { AppShell } from "@/components/AppShell";
 import "./assets.css";
 import {
   Box,
+  Download,
   ExternalLink,
   FileText,
   FolderArchive,
@@ -15,9 +16,10 @@ import {
   Plus,
   Search,
   Trash2,
+  Upload,
   X,
 } from "lucide-react";
-import { DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type AssetType = "document" | "item" | "domain";
 
@@ -51,6 +53,8 @@ const normalizeUrl = (url: string) => {
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
 };
 
+const STORAGE_KEY = "bizneed-assets";
+
 export default function MyAssetsPage() {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | AssetType>("all");
@@ -61,15 +65,36 @@ export default function MyAssetsPage() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const didDrag = useRef(false);
+  const importRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem("bizneed-assets");
-    if (saved) setAssets(JSON.parse(saved));
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setAssets(JSON.parse(saved));
+    } catch {
+      setAssets([]);
+    }
   }, []);
 
   const saveAssets = (next: Asset[]) => {
     setAssets(next);
-    localStorage.setItem("bizneed-assets", JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  };
+
+  const exportData = () => {
+    const payload = {
+      format: "bizneed-assets-backup",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      assets,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bizneed-assets-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleDragStart = (event: DragEvent<HTMLElement>, assetId: string) => {
@@ -134,6 +159,28 @@ export default function MyAssetsPage() {
     setEditingAsset(null);
   };
 
+  const importData = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const parsed = JSON.parse(await file.text());
+      const next = Array.isArray(parsed) ? parsed : parsed.assets;
+      if (!Array.isArray(next)) throw new Error("invalid");
+
+      if (window.confirm("현재 내 사업 문서 데이터를 선택한 JSON 파일의 전체 데이터로 교체할까요?")) {
+        saveAssets(next);
+        setActiveTab("all");
+        setSearch("");
+        closeModal();
+      }
+    } catch {
+      window.alert("올바른 내 사업 문서 JSON 백업 파일이 아닙니다.");
+    }
+
+    event.target.value = "";
+  };
+
   const filtered = useMemo(() => assets.filter((asset) => {
     const matchesTab = activeTab === "all" || asset.type === activeTab;
     const keyword = `${asset.title} ${asset.location} ${asset.memo} ${asset.domainName ?? ""}`.toLowerCase();
@@ -169,9 +216,14 @@ export default function MyAssetsPage() {
           <h1>내 사업 문서</h1>
           <p>사업 관련 서류 위치, 물품, 도메인과 중요한 링크를 한곳에 기록하세요.</p>
         </div>
-        <button className="button button-dark" onClick={openCreateModal}>
+        <div className="vault-header-actions">
+          <button className="button button-ghost" onClick={() => importRef.current?.click()}><Upload size={16} /> 전체 가져오기</button>
+          <button className="button button-ghost" onClick={exportData}><Download size={16} /> JSON 내려받기</button>
+          <button className="button button-dark" onClick={openCreateModal}>
           <Plus size={17} /> 새 항목 등록
-        </button>
+          </button>
+          <input ref={importRef} hidden type="file" accept=".json,application/json" onChange={importData} />
+        </div>
       </header>
 
       <section className="vault-summary">
